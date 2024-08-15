@@ -60,12 +60,12 @@ int comparator(const void* blk1, const void* blk2){
 }
   
 
-int find( mem_blk_list *allocated_blks, void* start_address){
+int find(mem_blk_list *allocated_blks, void* start_address){
   memory_blk blk = {
 	.start = start_address
   };
   
-   char* found_address = bsearch(&blk, allocated_blks->mem_blks, allocated_blks->cnt, sizeof(allocated_blks->mem_blks[0]),comparator);
+   memory_blk* found_address = bsearch(&blk, allocated_blks->mem_blks, allocated_blks->cnt, sizeof(allocated_blks->mem_blks[0]),comparator);
 
    if(found_address != 0)
 	 return ((found_address - allocated_blks->mem_blks)/sizeof(allocated_blks->mem_blks[0]));
@@ -75,6 +75,9 @@ int find( mem_blk_list *allocated_blks, void* start_address){
 }
 
 void deallocate(void* blk_address){
+  if(blk_address)
+	return;
+  
   const int index  = find(&allocated_blks, blk_address);
   assert(index>=0);
 
