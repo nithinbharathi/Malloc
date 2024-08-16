@@ -18,10 +18,21 @@ typedef struct {
   memory_blk mem_blks[LOOKUP_CAPACITY];
 }mem_blk_list;
 
-mem_blk_list  allocated_blks;
-mem_blk_list free_blks;
+mem_blk_list  allocated_blks = {0};
+mem_blk_list free_blks = {
+  .cnt = 1,
+  .mem_blks = {
+	[0] = {.start = heap, .size = sizeof(heap)}
+  }
+};
 
 int lookup_table_size = 0,free_lookup_table_size = 0;
+
+void trace_heap(const mem_blk_list* list){
+     for(size_t i = 0;i<list->cnt;i++){
+	   printf("address: %p\t size: %zu \n", list->mem_blks[i].start, list->mem_blks[i].size);
+	 }
+}
 
 void insert(mem_blk_list* list, void* start_address, size_t size){
   assert(list->cnt<LOOKUP_CAPACITY);
@@ -38,18 +49,14 @@ void insert(mem_blk_list* list, void* start_address, size_t size){
   list->cnt++;
 }
 
-void* allocate(size_t size){
-  if(size <= 0)
-	return NULL;
+void remove_blk(mem_blk_list* list, size_t index){
+  assert(index < list->cnt);
   
-  assert(heap_size + size <= HEAP_CAPACITY);
+  for(size_t i = index;i<list->cnt-1;++i){
+	list->mem_blks[i] = list->mem_blks[i+1];
+  }
   
-  void *address = heap + heap_size;
-  heap_size += size;
-
-  insert(&allocated_blks, address, size);
-  
-  return address;
+  list->cnt--;
 }
 
 int comparator(const void* blk1, const void* blk2){
@@ -60,42 +67,73 @@ int comparator(const void* blk1, const void* blk2){
 }
   
 
-int find(mem_blk_list *allocated_blks, void* start_address){
+int find(const mem_blk_list *list, void* start_address){
   memory_blk blk = {
 	.start = start_address
   };
   
-   memory_blk* found_address = bsearch(&blk, allocated_blks->mem_blks, allocated_blks->cnt, sizeof(allocated_blks->mem_blks[0]),comparator);
+  for(size_t i = 0;i<list->cnt;i++){
+	  if(list->mem_blks[i].start == start_address)
+		return i;
+   }
+	  
+   return -1; 
+}
 
-   if(found_address != 0)
-	 return ((found_address - allocated_blks->mem_blks)/sizeof(allocated_blks->mem_blks[0]));
-   else
-	 return -1;
+void* allocate(size_t size){
+  if(size <= 0)
+	return NULL;
   
+  for(size_t i = 0;i<free_blks.cnt;++i){
+	const memory_blk free_blk = free_blks.mem_blks[i];
+	
+	if(free_blk.size>=size){
+	  remove_blk(&free_blks, i);
+	  insert(&allocated_blks, free_blk.start, size);
+	  
+	  const size_t remaining = free_blk.size - size;
+
+	  if(remaining>0)
+		insert(&free_blks,free_blk.start+size,remaining);
+
+	  return free_blk.start;
+	}
+  }
+ 
+  return NULL;
 }
 
 void deallocate(void* blk_address){
-  if(blk_address)
+  if(blk_address == NULL)
 	return;
   
   const int index  = find(&allocated_blks, blk_address);
   assert(index>=0);
-
+  
   insert(&free_blks,allocated_blks.mem_blks[index].start, allocated_blks.mem_blks[index].size);
+  remove_blk(&allocated_blks, (size_t)index);
   
 }
 
-void trace_heap(const mem_blk_list* list){
-     for(size_t i = 0;i<list->cnt;i++){
-	   printf("address: %p\t size: %zu \n", list->mem_blks[i].start, list->mem_blks[i].size);
-	 }
-}
-
 int main(){
-    for(int i = 0;i<26;i++){
-	  allocate(i);
-    }
-
+  for(int i = 0;i<8;i++){
+	void* allocated_address = allocate(i);
+	if(i%2 == 0)
+	  deallocate(allocated_address);
+  }
     trace_heap(&allocated_blks);
+	printf("free blocks...\n");
+	trace_heap(&free_blks);
+
+	for(int i = 0;i<8;i++){
+	  if(i%2==0){
+		allocate(i);
+	  }
+	}
+	
+	trace_heap(&allocated_blks);
+	printf("free blocks after allocation...\n");
+	trace_heap(&free_blks);
+
 	return 1;
 }
