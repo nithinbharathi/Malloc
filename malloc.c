@@ -26,6 +26,8 @@ mem_blk_list free_blks = {
   }
 };
 
+mem_blk_list temp  = {0};
+
 int lookup_table_size = 0,free_lookup_table_size = 0;
 
 void trace_heap(const mem_blk_list* list){
@@ -59,6 +61,26 @@ void remove_blk(mem_blk_list* list, size_t index){
   list->cnt--;
 }
 
+void merge_blks(mem_blk_list* des, const mem_blk_list* src){
+  des->cnt = 0;
+  
+  for(size_t i = 0;i<src->cnt;i++){
+	memory_blk current_blk = src->mem_blks[i];
+	
+	if(des->cnt>0){
+	  memory_blk* previous_blk = &des->mem_blks[des->cnt-1];
+	  
+	  if(previous_blk->start + previous_blk->size == current_blk.start){
+		previous_blk->size += current_blk.size;
+	  }else{
+		insert(des,current_blk.start,current_blk.size);
+	  }
+	}else{
+	  insert(des,current_blk.start,current_blk.size);
+	}
+  }
+}
+
 int comparator(const void* blk1, const void* blk2){
   const memory_blk *b1 = blk1;
   const memory_blk *b2 = blk2;
@@ -68,10 +90,6 @@ int comparator(const void* blk1, const void* blk2){
   
 
 int find(const mem_blk_list *list, void* start_address){
-  memory_blk blk = {
-	.start = start_address
-  };
-  
   for(size_t i = 0;i<list->cnt;i++){
 	  if(list->mem_blks[i].start == start_address)
 		return i;
@@ -83,6 +101,9 @@ int find(const mem_blk_list *list, void* start_address){
 void* allocate(size_t size){
   if(size <= 0)
 	return NULL;
+  
+   merge_blks(&temp, &free_blks);
+  free_blks = temp;
   
   for(size_t i = 0;i<free_blks.cnt;++i){
 	const memory_blk free_blk = free_blks.mem_blks[i];
@@ -118,22 +139,14 @@ void deallocate(void* blk_address){
 int main(){
   for(int i = 0;i<8;i++){
 	void* allocated_address = allocate(i);
-	if(i%2 == 0)
-	  deallocate(allocated_address);
-  }
-    trace_heap(&allocated_blks);
-	printf("free blocks...\n");
-	trace_heap(&free_blks);
-
-	for(int i = 0;i<8;i++){
-	  if(i%2==0){
-		allocate(i);
-	  }
-	}
 	
-	trace_heap(&allocated_blks);
-	printf("free blocks after allocation...\n");
-	trace_heap(&free_blks);
+	deallocate(allocated_address);
+  }
+  
+  allocate(10);
+  trace_heap(&allocated_blks);
+  printf("free blocks...\n");
+  trace_heap(&free_blks);
 
-	return 1;
+  return 1;
 }
