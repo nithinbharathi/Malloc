@@ -4,7 +4,7 @@ This project provides a simple memory management simulation in C. It demonstrate
 
 The following example demonstrates allocation and deallocation of memory blocks, and prints the state of allocated and free memory blocks:
 
-'''
+```c
 for (int i = 0; i < 5; i++) {             //allocates memory blocks of size 0 to 4
     void* allocated_address = allocate(i);
     deallocate(allocated_address);        //deallocates the allocated memory addresses
@@ -12,4 +12,4 @@ for (int i = 0; i < 5; i++) {             //allocates memory blocks of size 0 to
   
 trace_heap(&allocated_blks);              // prints out the current state of the allocated blocks
 trace_heap(&free_blks);                   //prints out the current state of all the free blocks available
-'''
+
