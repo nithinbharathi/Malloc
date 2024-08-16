@@ -30,9 +30,18 @@ mem_blk_list temp  = {0};
 
 int lookup_table_size = 0,free_lookup_table_size = 0;
 
-void trace_heap(const mem_blk_list* list){
-     for(size_t i = 0;i<list->cnt;i++){
-	   printf("address: %p\t size: %zu \n", list->mem_blks[i].start, list->mem_blks[i].size);
+void trace_heap(){
+  
+  printf("Allocated blocks: \n");
+  
+    for(size_t i = 0;i<allocated_blks.cnt;i++){
+	   printf("address: %p\t size: %zu \n",  allocated_blks.mem_blks[i].start, allocated_blks.mem_blks[i].size);
+	 }
+	 
+	 printf("\nAvailable free blocks: \n");
+	 
+	 for(size_t i = 0;i<free_blks.cnt;i++){
+	   printf("address: %p\t size: %zu \n", free_blks.mem_blks[i].start, free_blks.mem_blks[i].size);
 	 }
 }
 
@@ -102,7 +111,7 @@ void* allocate(size_t size){
   if(size <= 0)
 	return NULL;
   
-   merge_blks(&temp, &free_blks);
+  merge_blks(&temp, &free_blks);
   free_blks = temp;
   
   for(size_t i = 0;i<free_blks.cnt;++i){
@@ -144,9 +153,7 @@ int main(){
   }
   
   allocate(10);
-  trace_heap(&allocated_blks);
-  printf("free blocks...\n");
-  trace_heap(&free_blks);
-
+  trace_heap();
+  
   return 1;
 }
