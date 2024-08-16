@@ -10,6 +10,5 @@ for (int i = 0; i < 5; i++) {             //allocates memory blocks of size 0 to
     deallocate(allocated_address);        //deallocates the allocated memory addresses
   }
   
-trace_heap(&allocated_blks);              // prints out the current state of the allocated blocks
-trace_heap(&free_blks);                   //prints out the current state of all the free blocks available
+trace_heap();              // prints out the current state of the heap (allocated and free blocks information)
 
