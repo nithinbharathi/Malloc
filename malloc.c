@@ -1,15 +1,16 @@
 #include<stdio.h>
 #include<assert.h>
 #include<stdlib.h>
+#include<stdint.h>
 
 #define HEAP_CAPACITY 64000
 #define LOOKUP_CAPACITY 1024
 
-char heap[HEAP_CAPACITY] = {0};
+uintptr_t heap[HEAP_CAPACITY/sizeof(uintptr_t*)] = {0};
 size_t heap_size = 0;
 
 typedef struct memory_blk{
-       char* start;
+       uintptr_t* start;
        size_t size;
 }memory_blk;
 
@@ -27,8 +28,6 @@ mem_blk_list free_blks = {
 };
 
 mem_blk_list temp  = {0};
-
-int lookup_table_size = 0,free_lookup_table_size = 0;
 
 void trace_heap(){
   
@@ -98,7 +97,7 @@ int comparator(const void* blk1, const void* blk2){
 }
   
 
-int find(const mem_blk_list *list, void* start_address){
+int find(const mem_blk_list *list, uintptr_t* start_address){
   for(size_t i = 0;i<list->cnt;i++){
 	  if(list->mem_blks[i].start == start_address)
 		return i;
@@ -108,7 +107,8 @@ int find(const mem_blk_list *list, void* start_address){
 }
 
 void* allocate(size_t size){
-  if(size <= 0)
+  size_t size_in_words = (size + sizeof(uintptr_t) - 1)/sizeof(uintptr_t);
+  if( size_in_words <= 0)
 	return NULL;
   
   merge_blks(&temp, &free_blks);
@@ -117,14 +117,14 @@ void* allocate(size_t size){
   for(size_t i = 0;i<free_blks.cnt;++i){
 	const memory_blk free_blk = free_blks.mem_blks[i];
 	
-	if(free_blk.size>=size){
+	if(free_blk.size>= size_in_words){
 	  remove_blk(&free_blks, i);
-	  insert(&allocated_blks, free_blk.start, size);
+	  insert(&allocated_blks, free_blk.start,  size_in_words);
 	  
-	  const size_t remaining = free_blk.size - size;
+	  const size_t remaining = free_blk.size -  size_in_words;
 
 	  if(remaining>0)
-		insert(&free_blks,free_blk.start+size,remaining);
+		insert(&free_blks,free_blk.start+ size_in_words,remaining);
 
 	  return free_blk.start;
 	}
@@ -146,7 +146,7 @@ void deallocate(void* blk_address){
 }
 
 int main(){
-  for(int i = 0;i<8;i++){
+  for(int i = 0;i<10;i++){
 	void* allocated_address = allocate(i);
 	
 	deallocate(allocated_address);
