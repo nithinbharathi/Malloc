@@ -14,6 +14,14 @@ typedef struct memory_blk{
        size_t size;
 }memory_blk;
 
+typedef struct Node Node;
+
+ struct Node{
+ char x;
+ Node* left;
+ Node* right;
+};
+
 typedef struct {
   size_t cnt;
   memory_blk mem_blks[LOOKUP_CAPACITY];
@@ -28,6 +36,7 @@ mem_blk_list free_blks = {
 };
 
 mem_blk_list temp  = {0};
+Node* root;
 
 void trace_heap(){
   
@@ -145,15 +154,33 @@ void deallocate(void* blk_address){
   
 }
 
-int main(){
-  for(int i = 0;i<10;i++){
-	void* allocated_address = allocate(i);
+
+Node* generate_tree(size_t current_level, size_t max_level){
+  if(current_level<max_level){
+	Node* node = allocate(sizeof(*node));
+	node->x = (char)('a'+current_level);
+	node->left = generate_tree(current_level+1,max_level);
+	node->right = generate_tree(current_level+1,max_level);
 	
-	deallocate(allocated_address);
+	return node;
+  }else{
+	return NULL;
   }
-  
-  allocate(10);
-  trace_heap();
+}
+
+void trace_tree(Node* root){
+  if(root != NULL){
+	printf("%c\n",root->x);
+	trace_tree(root->left);
+	trace_tree(root->right);
+  }else{
+	return;
+  }
+}
+
+int main(){
+ Node* root = generate_tree(0,3);
+ trace_tree(root);
   
   return 1;
 }
