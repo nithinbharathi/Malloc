@@ -12,17 +12,18 @@
 uintptr_t heap[HEAP_CAPACITY_WORDS] = {0};
 size_t heap_size = 0;
 uintptr_t* base_address = 0;
-
 bool reachable_blks[1024] = {0};
 
-typedef struct memory_blk{
-       uintptr_t* start;
-       size_t size;
-}memory_blk;
-
 typedef struct Node Node;
+typedef struct mem_blk mem_blk;
 
- struct Node{
+struct mem_blk{
+  uintptr_t* start;
+  size_t size;
+};
+
+
+struct Node{
  char x;
  Node* left;
  Node* right;
@@ -30,7 +31,7 @@ typedef struct Node Node;
 
 typedef struct {
   size_t cnt;
-  memory_blk mem_blks[LOOKUP_CAPACITY];
+  mem_blk mem_blks[LOOKUP_CAPACITY];
 }mem_blk_list;
 
 mem_blk_list  allocated_blks = {0};
@@ -68,7 +69,7 @@ void insert(mem_blk_list* list, void* start_address, size_t size){
   list->mem_blks[list->cnt].size = size;
 
   for(size_t i = list->cnt;i>0 && list->mem_blks[i].start < list->mem_blks[i-1].start; --i){
-	const memory_blk blk = list->mem_blks[i];
+	const mem_blk blk = list->mem_blks[i];
 	list->mem_blks[i] = list->mem_blks[i-1];
 	list->mem_blks[i-1] = blk;
   }
@@ -90,10 +91,10 @@ void merge_blks(mem_blk_list* des, const mem_blk_list* src){
   des->cnt = 0;
   
   for(size_t i = 0;i<src->cnt;i++){
-	memory_blk current_blk = src->mem_blks[i];
+	mem_blk current_blk = src->mem_blks[i];
 	
 	if(des->cnt>0){
-	  memory_blk* previous_blk = &des->mem_blks[des->cnt-1];
+	  mem_blk* previous_blk = &des->mem_blks[des->cnt-1];
 	  
 	  if(previous_blk->start + previous_blk->size == current_blk.start){
 		previous_blk->size += current_blk.size;
@@ -107,8 +108,8 @@ void merge_blks(mem_blk_list* des, const mem_blk_list* src){
 }
 
 int comparator(const void* blk1, const void* blk2){
-  const memory_blk *b1 = blk1;
-  const memory_blk *b2 = blk2;
+  const mem_blk* b1 = blk1;
+  const mem_blk* b2 = blk2;
   
   return b1->start - b2->start;
 }
@@ -132,7 +133,7 @@ void* allocate(size_t size){
   free_blks = temp;
 
   for(size_t i = 0;i<free_blks.cnt;++i){
-	const memory_blk free_blk = free_blks.mem_blks[i];
+	const mem_blk free_blk = free_blks.mem_blks[i];
 	
 	if(free_blk.size >= size_in_words){
 	  remove_blk(&free_blks, i);
@@ -192,7 +193,7 @@ void mark(const uintptr_t* start, const uintptr_t* end){
   for(; start<end; start+=1){
 	const uintptr_t* p = (const uintptr_t*) *start;
 	for(size_t i = 0;i<allocated_blks.cnt;i++){
-	  memory_blk blk = allocated_blks.mem_blks[i];
+	  mem_blk blk = allocated_blks.mem_blks[i];
 	  if(p >= blk.start && p <= blk.start + blk.size){
 		if(!reachable_blks[i]){
 		  reachable_blks[i] = true;
@@ -251,6 +252,6 @@ int main(){
  allocate(1);
  trace_heap();
 
-  return 1;
+ return 1;
 }
 
