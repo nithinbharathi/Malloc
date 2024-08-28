@@ -2,12 +2,18 @@
 #include<assert.h>
 #include<stdlib.h>
 #include<stdint.h>
+#include<stdbool.h>
+#include<string.h>
 
 #define HEAP_CAPACITY 64000
 #define LOOKUP_CAPACITY 1024
+#define HEAP_CAPACITY_WORDS (HEAP_CAPACITY/sizeof(uintptr_t*))
 
-uintptr_t heap[HEAP_CAPACITY/sizeof(uintptr_t*)] = {0};
+uintptr_t heap[HEAP_CAPACITY_WORDS] = {0};
 size_t heap_size = 0;
+uintptr_t* base_address = 0;
+
+bool reachable_blks[1024] = {0};
 
 typedef struct memory_blk{
        uintptr_t* start;
@@ -43,7 +49,7 @@ void trace_heap(){
   printf("Allocated blocks: \n");
   
     for(size_t i = 0;i<allocated_blks.cnt;i++){
-	   printf("address: %p\t size: %zu \n",  allocated_blks.mem_blks[i].start, allocated_blks.mem_blks[i].size);
+	  printf("address: %p\t size: %zu  reachable: %s\n",  allocated_blks.mem_blks[i].start, allocated_blks.mem_blks[i].size, reachable_blks[i]?"true":"false");
 	 }
 	 
 	 printf("\nAvailable free blocks: \n");
@@ -51,6 +57,8 @@ void trace_heap(){
 	 for(size_t i = 0;i<free_blks.cnt;i++){
 	   printf("address: %p\t size: %zu \n", free_blks.mem_blks[i].start, free_blks.mem_blks[i].size);
 	 }
+
+	 printf("---------------------------------------------------------------------------------------------------\n");
 }
 
 void insert(mem_blk_list* list, void* start_address, size_t size){
@@ -122,18 +130,18 @@ void* allocate(size_t size){
   
   merge_blks(&temp, &free_blks);
   free_blks = temp;
-  
+
   for(size_t i = 0;i<free_blks.cnt;++i){
 	const memory_blk free_blk = free_blks.mem_blks[i];
 	
-	if(free_blk.size>= size_in_words){
+	if(free_blk.size >= size_in_words){
 	  remove_blk(&free_blks, i);
 	  insert(&allocated_blks, free_blk.start,  size_in_words);
 	  
 	  const size_t remaining = free_blk.size -  size_in_words;
 
 	  if(remaining>0)
-		insert(&free_blks,free_blk.start+ size_in_words,remaining);
+		insert(&free_blks, free_blk.start + size_in_words, remaining);
 
 	  return free_blk.start;
 	}
@@ -157,20 +165,22 @@ void deallocate(void* blk_address){
 
 Node* generate_tree(size_t current_level, size_t max_level){
   if(current_level<max_level){
-	Node* node = allocate(sizeof(*node));
+	Node* node = allocate(sizeof(Node));
+	
 	node->x = (char)('a'+current_level);
 	node->left = generate_tree(current_level+1,max_level);
 	node->right = generate_tree(current_level+1,max_level);
 	
 	return node;
   }else{
+	
 	return NULL;
   }
 }
 
 void trace_tree(Node* root){
   if(root != NULL){
-	printf("%c\n",root->x);
+	printf("Value of the node: %c at address: %p\n",root->x,root);
 	trace_tree(root->left);
 	trace_tree(root->right);
   }else{
@@ -178,9 +188,69 @@ void trace_tree(Node* root){
   }
 }
 
-int main(){
- Node* root = generate_tree(0,3);
- trace_tree(root);
+void mark(const uintptr_t* start, const uintptr_t* end){
+  for(; start<end; start+=1){
+	const uintptr_t* p = (const uintptr_t*) *start;
+	for(size_t i = 0;i<allocated_blks.cnt;i++){
+	  memory_blk blk = allocated_blks.mem_blks[i];
+	  if(p >= blk.start && p <= blk.start + blk.size){
+		if(!reachable_blks[i]){
+		  reachable_blks[i] = true;
+		  mark(blk.start,blk.start+blk.size);
+		}		  
+	  }	  
+	}
+  }   
+}
+
+void collect(){
+  const uintptr_t* start = __builtin_frame_address(0);
+
+  memset(reachable_blks,0,sizeof(reachable_blks));
+		 
+  mark(start, base_address+1);
+
+  printf("\nState of the Heap before Deallocation...\n");
+
+  trace_heap();
+   
+  printf("\nDeallocation started..\n\n");
   
+  size_t cnt = 0;
+  uintptr_t* to_deallocate[1024];
+  
+  //collect the blocks to deallocate;
+  for(size_t itr = 0; itr<allocated_blks.cnt;itr++){
+	if(!reachable_blks[itr]){
+	  to_deallocate[cnt++] = allocated_blks.mem_blks[itr].start;
+	}
+  }
+  
+  for(size_t itr = 0; itr<cnt;itr++){
+	deallocate(to_deallocate[itr]);
+  }
+}
+
+int main(){
+ base_address = __builtin_frame_address(0);
+ 
+ Node* root = generate_tree(0,1);
+ 
+ trace_tree(root);
+ printf("The root of the tree is %p\n",root);
+
+  //unreachable pointers
+ for(size_t itr = 1 ;itr<=5;itr++){
+   allocate(itr); 
+ }
+
+ collect();
+ trace_heap();
+
+ //allocate to see if the free blocks are getting used;
+ allocate(1);
+ trace_heap();
+
   return 1;
 }
+
